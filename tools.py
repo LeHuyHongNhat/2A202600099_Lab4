@@ -88,7 +88,7 @@ def search_flights(origin: str, destination: str) -> str:
         return f"Lỗi khi tìm chuyến bay: {e}"
 
 @tool
-def search_hotels(city: str, max_price_per_night: Union[str, int, None] = None) -> str:
+def search_hotels(city: str, max_price_per_night: Union[str, int, None] = 999999999) -> str:
     """Tìm kiếm các khách sạn tại một thành phố, có thể lọc theo giá tối đa mỗi đêm
     Tham số:
     - city: Thành phố cần tìm kiếm khách sạn (Ví dụ: "Đà Nẵng", "Phú Quốc", "Hồ Chí Minh")
@@ -145,7 +145,12 @@ def search_hotels(city: str, max_price_per_night: Union[str, int, None] = None) 
         return f"Lỗi khi tìm khách sạn: {e}"
 
 @tool
-def calculate_budget(total_budget: Union[str, int, None] = None, expenses: Union[str, int, None] = None) -> str:
+def calculate_budget(
+    total_budget: Union[str, int, None] = None,
+    expenses: Union[str, int, None] = None,
+    flights_price: Union[str, int, None] = None,
+    hotels_price: Union[str, int, None] = None,
+) -> str:
     """Tính toán ngân sách còn lại sau khi trừ đi các khoản chi phí
     Tham số:
     - total_budget: Ngân sách tổng ban đầu (VNĐ)
@@ -203,8 +208,47 @@ def calculate_budget(total_budget: Union[str, int, None] = None, expenses: Union
 
     if remaining < 0:
         lines.append(f"  Còn lại:   -{format_price(abs(remaining))}đ")
-        lines.append(f"\n⚠️  Vượt ngân sách {format_price(abs(remaining))} đồng! Cần điều chỉnh.")
+        lines.append(f"\n  Vượt ngân sách {format_price(abs(remaining))} đồng! Cần điều chỉnh.")
     else:
         lines.append(f"  Còn lại:   {format_price(remaining)}đ")
 
     return "\n".join(lines)
+
+
+@tool
+def format_response(
+    flights_info: str = "",
+    hotels_info: str = "",
+    budget_info: str = "",
+    tips: str = "",
+    closing_question: str = "",
+) -> str:
+    """Định dạng và trình bày kết quả tư vấn du lịch thành câu trả lời hoàn chỉnh.
+    Gọi tool này SAU KHI đã thu thập đủ dữ liệu từ các tool khác.
+    Tham số:
+    - flights_info: Kết quả nguyên văn từ search_flights (để trống nếu chưa tìm)
+    - hotels_info: Kết quả nguyên văn từ search_hotels (để trống nếu chưa tìm)
+    - budget_info: Kết quả nguyên văn từ calculate_budget (để trống nếu không có ngân sách)
+    - tips: 1–3 mẹo ngắn về thời tiết, ẩm thực hoặc tiết kiệm tại điểm đến, mỗi mẹo một dòng
+    - closing_question: Câu hỏi ngắn thân thiện để tiếp tục hỗ trợ khách
+    """
+    sections: list[str] = []
+
+    if flights_info:
+        sections.append(f"CHUYEN BAY\n{flights_info}")
+
+    if hotels_info:
+        sections.append(f"KHACH SAN\n{hotels_info}")
+
+    if budget_info:
+        sections.append(f"TONG CHI PHI UOC TINH\n{budget_info}")
+
+    if tips:
+        sections.append(f"GOI Y THEM\n{tips}")
+
+    body = "\n\n".join(sections)
+
+    if closing_question:
+        body = f"{body}\n\n{closing_question}"
+
+    return body
