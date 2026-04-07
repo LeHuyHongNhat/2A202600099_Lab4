@@ -77,12 +77,15 @@ def search_flights(origin: str, destination: str) -> str:
         lines.append("\nVui lòng chọn chuyến bay phù hợp với bạn.")
         return "\n".join(lines)
 
-    if (origin, destination) in FLIGHTS_DB:
-        return format_flights((origin, destination), origin, destination)
-    elif (destination, origin) in FLIGHTS_DB:
-        return format_flights((destination, origin), destination, origin)
-    else:
-        return "Không tìm thấy thông tin chuyến bay từ " + origin + " đến " + destination + ". Vui lòng kiểm tra lại điểm đến và điểm khởi hành."
+    try:
+        if (origin, destination) in FLIGHTS_DB:
+            return format_flights((origin, destination), origin, destination)
+        elif (destination, origin) in FLIGHTS_DB:
+            return format_flights((destination, origin), destination, origin)
+        else:
+            return f"Không tìm thấy thông tin chuyến bay từ {origin} đến {destination}. Vui lòng kiểm tra lại điểm đến và điểm khởi hành."
+    except Exception as e:
+        return f"Lỗi khi tìm chuyến bay: {e}"
 
 @tool
 def search_hotels(city: str, max_price_per_night: Union[str, int, None] = None) -> str:
@@ -126,12 +129,20 @@ def search_hotels(city: str, max_price_per_night: Union[str, int, None] = None) 
         lines.append("\nVui lòng chọn khách sạn phù hợp với bạn.")
         return "\n".join(lines)
 
-    if city not in HOTELS_DB:
-        return "Không tìm thấy thông tin khách sạn tại " + city + ". Vui lòng kiểm tra lại thành phố."
-    elif city in HOTELS_DB and max_price_per_night < HOTELS_DB[city][0]['price_per_night']:
-        return "Không tìm thấy khách sạn tại " + city + " với giá dưới " + format_price(max_price_per_night) + ". Hãy thử tăng ngân sách"
-    elif city in HOTELS_DB and max_price_per_night >= HOTELS_DB[city][0]['price_per_night']:
+    try:
+        if city not in HOTELS_DB:
+            return f"Không tìm thấy thông tin khách sạn tại {city}. Vui lòng kiểm tra lại thành phố."
+
+        matching = [h for h in HOTELS_DB[city] if h['price_per_night'] <= max_price_per_night]
+        if not matching:
+            min_price = min(h['price_per_night'] for h in HOTELS_DB[city])
+            return (
+                f"Không tìm thấy khách sạn tại {city} với giá dưới {format_price(max_price_per_night)}. "
+                f"Khách sạn rẻ nhất là {format_price(min_price)}. Hãy thử tăng ngân sách."
+            )
         return format_hotels(city, max_price_per_night)
+    except Exception as e:
+        return f"Lỗi khi tìm khách sạn: {e}"
 
 @tool
 def calculate_budget(total_budget: Union[str, int, None] = None, expenses: Union[str, int, None] = None) -> str:
@@ -160,8 +171,11 @@ def calculate_budget(total_budget: Union[str, int, None] = None, expenses: Union
         return f"{amount:,}".replace(",", ".")
 
     def parse_expenses(expenses_str: str) -> dict:
+        import re
         result = {}
-        for item in expenses_str.split(","):
+        # Tách theo pattern "tên: số_tiền" — dùng regex để không bị nhầm dấu , trong số tiền
+        items = re.split(r",\s*(?=[^\d])", expenses_str)
+        for item in items:
             item = item.strip()
             if not item:
                 continue
